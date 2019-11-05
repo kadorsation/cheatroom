@@ -5,47 +5,53 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netdb.h>
 
-
-int main(int argc , char *argv[])
+int main(int argc, char *argv[])
 {
-    //socket的建立
+    fd_set all;
+    FD_ZERO(&all);
     int sockfd = 0;
     sockfd = socket(AF_INET , SOCK_STREAM , 0);
-
     if (sockfd == -1){
         printf("Fail to create a socket.");
     }
-
-    //socket的連線
-
     struct sockaddr_in info;
     bzero(&info,sizeof(info));
     info.sin_family = PF_INET;
-
-    //localhost test
     int port = atoi (argv[2]);
     info.sin_addr.s_addr = inet_addr(argv[1]);
     info.sin_port = htons(port);
-
-
     int err = connect(sockfd,(struct sockaddr *)&info,sizeof(info));
     if(err==-1){
         printf("Connection error");
     }
 
+    char sendline[1025], recvline[1025];
+    int exit = 0;
+    while(1){
+        if(exit == 0){
+            FD_SET(fileno(stdin), &all);
+        }
+        FD_SET(sockfd, &all);
+        select((sockfd+1), &all, NULL, NULL, NULL);
+        if(FD_ISSET(sockfd, &all)){
+            memset(recvline,'\0',1025);
+            read(sockfd, recvline, 1025) == 0;
+            fputs(recvline, stdout);
+        }
 
-    //Send a message to server
+        if(FD_ISSET(fileno(stdin), &all)){
+            fgets(sendline, 1025, stdin);
+            if(strcmp(sendline, "exit\n")){
+                close(sockfd);
+                FD_ZERO(&all);
+                return 0;
+            }
+            write(sockfd, sendline, strlen(sendline));
+        }
 
-    char message[] = {"Hi there"};
-    while(message!="close"){
-        scanf("%s",message);
-        char receiveMessage[256] = {};
-        write(sockfd,message,sizeof(message));
-        read(sockfd,receiveMessage,sizeof(receiveMessage));
-        printf("receive:%s\n",receiveMessage);
     }
-    printf("close Socket\n");
-    close(sockfd);
     return 0;
 }
