@@ -8,8 +8,18 @@
 #include <sys/time.h>
 #include <netinet/in.h>
 
+#define default_name "anonymous";
+
+struct user
+{
+    char *user_name;
+    struct sockaddr_in clientInfo;
+    int flag;
+};
+
 int main(int argc, char *argv[])
 {
+   
     fd_set all;
     fd_set select_fd;
     FD_ZERO(&all);
@@ -22,7 +32,6 @@ int main(int argc, char *argv[])
     int nready;
     listener = socket(AF_INET , SOCK_STREAM , 0);
     int newfd;
-    int client[10];
     socklen_t len;
     char buffer[1025];
     int port = atoi (argv[1]);
@@ -35,52 +44,54 @@ int main(int argc, char *argv[])
     listen(listener,10);
     FD_SET(listener, &all);
     max = listener;
-    for(i = 0 ; i < 10 ; i++){
-        client[i] = -1;
+    struct user client[10];
+    for(i = 0; i < 10; i++){
+        client[i].flag = -1;
+        client[i].user_name = default_name;
     }
+
+
     while(1){
         select_fd = all;
         nready = select(max+1,&select_fd,NULL,NULL,NULL);
         if (FD_ISSET(listener, &select_fd)) {    //new connection
             printf("New client!\n");
-            len = sizeof(clientInfo);
-            newfd =  accept(listener, (struct sockaddr *) &clientInfo, &len);
             
             for (i = 0; i < 10; i++){ 
-                if (client[i] < 0) { 
-                    client[i] = newfd;
+                if (client[i].flag < 0) { 
+                    len = sizeof(client[i].clientInfo);
+                    newfd = accept(listener, (struct sockaddr *) &client[i].clientInfo, &len);
+                    client[i].flag = newfd;
+                    FD_SET(client[i].flag, &all);
                     break; 
                 } 
             }
             if (i >= 10){ 
                 continue;
             }
-            FD_SET(newfd, &all);
             if (newfd > max){ 
                 max = newfd;        /* for select */ 
-            }
-            if (i > maxi){ 
-                maxi = i;       /* max index in client[] array */ 
             }
             if (--nready <= 0){ 
                 continue;
             }
         }
-        for( i = 0; i <= maxi; i++){
-            sockfd = client[i];
+        for( i = 0; i < 10; i++){
+            sockfd = client[i].flag;
             if(sockfd < 0){
                 continue;
             }
-            if (FD_ISSET(sockfd, &select_fd)){
+            if (FD_ISSET(sockfd, &select_fd)){  //因為第81行所以sockfd現在是此cliend的socket值
+                printf("%d %d\n", client[i].flag, i);
                 memset( buffer, '\0', sizeof( buffer ) );
                 n = read(sockfd, buffer, 1025);
-                printf("%s",buffer);
-                if(n == 0){
+                if(n == 0 || buffer == "exit\n"){
                     close(sockfd); 
                     FD_CLR(sockfd, &all); 
-                    client[i] = -1; 
+                    client[i].flag = -1; 
                 }
                 else {
+                    printf("%s", buffer);
                     write(sockfd, buffer, n); 
                 }
                 if (--nready <= 0) {
