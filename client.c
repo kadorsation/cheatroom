@@ -33,7 +33,6 @@ int main(int argc, char *argv[])
     while(1){
         FD_SET(fileno(stdin), &all);
         FD_SET(sockfd, &all);
-        printf("%d\n",sockfd );
         select((sockfd+1), &all, NULL, NULL, NULL);
         if(FD_ISSET(sockfd, &all)){
             memset(recvline,'\0',1025);
