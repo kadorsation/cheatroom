@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/select.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -19,7 +20,7 @@ int main(int argc, char *argv[])
     }
     struct sockaddr_in info;
     bzero(&info,sizeof(info));
-    info.sin_family = PF_INET;
+    info.sin_family = AF_INET;
     int port = atoi (argv[2]);
     info.sin_addr.s_addr = inet_addr(argv[1]);
     info.sin_port = htons(port);
@@ -29,22 +30,20 @@ int main(int argc, char *argv[])
     }
 
     char sendline[1025], recvline[1025];
-    int exit = 0;
     while(1){
-        if(exit == 0){
-            FD_SET(fileno(stdin), &all);
-        }
+        FD_SET(fileno(stdin), &all);
         FD_SET(sockfd, &all);
+        printf("%d\n",sockfd );
         select((sockfd+1), &all, NULL, NULL, NULL);
         if(FD_ISSET(sockfd, &all)){
             memset(recvline,'\0',1025);
-            read(sockfd, recvline, 1025) == 0;
+            read(sockfd, recvline, 1025);
             fputs(recvline, stdout);
         }
 
         if(FD_ISSET(fileno(stdin), &all)){
             fgets(sendline, 1025, stdin);
-            if(strcmp(sendline, "exit\n")){
+            if(strcmp(sendline, "exit\n") == 0){
                 close(sockfd);
                 FD_ZERO(&all);
                 return 0;
